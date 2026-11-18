@@ -245,10 +245,7 @@ class EavCategoryOverrideSourceTest extends TestCase
      */
     private function createCategory(int $id, string $attributeCode, $value): CategoryInterface
     {
-        $category = $this->getMockBuilder(CategoryInterface::class)
-            ->disableOriginalConstructor()
-            ->addMethods(['getData'])
-            ->getMockForAbstractClass();
+        $category = $this->createMock(CategoryWithDataInterface::class);
         $category->method('getId')->willReturn($id);
         $category->method('getData')
             ->with($attributeCode)

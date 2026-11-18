@@ -16,6 +16,7 @@ use Magento\Config\Model\Config\Structure;
 use Magento\Config\Model\Config\Structure\Element\Field as StructureField;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Data\Form\Element\AbstractElement;
+use Magento\Framework\Data\Form\Element\Text;
 use Magento\Framework\View\LayoutInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -115,10 +116,10 @@ class ConfigBlockFieldPluginTest extends TestCase
 
     private function createElement(): AbstractElement
     {
-        $element = $this->getMockBuilder(AbstractElement::class)
+        $element = $this->getMockBuilder(Text::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['getHtmlId'])
-            ->getMockForAbstractClass();
+            ->getMock();
         $element->method('getHtmlId')->willReturn('section_group_field');
         $element->setData('field_config', ['path' => 'section/group', 'id' => 'field']);
 

@@ -279,10 +279,7 @@ class EavProductOverrideSourceTest extends TestCase
         $value,
         ?ProductResource $productResource = null
     ): ProductInterface {
-        $product = $this->getMockBuilder(ProductInterface::class)
-            ->disableOriginalConstructor()
-            ->addMethods(['getData', 'getResource'])
-            ->getMockForAbstractClass();
+        $product = $this->createMock(ProductWithDataInterface::class);
         $product->method('getId')->willReturn($id);
         $product->method('getData')
             ->with($attributeCode)

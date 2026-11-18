@@ -12,6 +12,7 @@ use Magento\Config\Model\Config\Structure;
 use Magento\Config\Model\Config\Structure\Element\Field;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Data\Form\Element\AbstractElement;
+use Magento\Framework\Data\Form\Element\Text;
 use Magento\Framework\View\LayoutInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -52,10 +53,10 @@ class ConfigBlockFieldPluginBlindTest extends TestCase
 
     private function createElement(array $fieldConfig): AbstractElement
     {
-        $element = $this->getMockBuilder(AbstractElement::class)
+        $element = $this->getMockBuilder(Text::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['getHtmlId'])
-            ->getMockForAbstractClass();
+            ->getMock();
         $element->method('getHtmlId')->willReturn('test_html_id');
         $element->setData('field_config', $fieldConfig);
         $element->setData('after_element_html', '<span>original</span>');
