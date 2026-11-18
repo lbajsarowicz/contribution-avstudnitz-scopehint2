@@ -76,7 +76,8 @@ class ConfigBlockFieldPluginTest extends TestCase
         $this->plugin->beforeRender($subject, $element);
         $rendered = $this->plugin->afterRender(
             $subject,
-            '<tr><td class="label">L</td><td class="value with-tooltip"><table><tr><td class="value">cell</td></tr></table></td></tr>',
+            '<tr><td class="label">L</td><td class="value with-tooltip">'
+                . '<table><tr><td class="value">cell</td></tr></table></td></tr>',
             $element
         );
 

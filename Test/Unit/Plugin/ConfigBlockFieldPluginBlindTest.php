@@ -73,7 +73,7 @@ class ConfigBlockFieldPluginBlindTest extends TestCase
         return $field;
     }
 
-    public function testC1_1UsesStructureFieldConfigPath(): void
+    public function testC11UsesStructureFieldConfigPath(): void
     {
         $field = $this->createField('payment/free/title', 'payment_us/free/title');
         $this->structure->method('getElement')->with('payment_us/free/title')->willReturn($field);
@@ -88,7 +88,7 @@ class ConfigBlockFieldPluginBlindTest extends TestCase
         );
     }
 
-    public function testC1_2FallsBackToStructurePathWhenConfigPathIsNull(): void
+    public function testC12FallsBackToStructurePathWhenConfigPathIsNull(): void
     {
         $field = $this->createField(null, 'payment_us/free/title');
         $this->structure->method('getElement')->with('payment_us/free/title')->willReturn($field);
@@ -103,7 +103,7 @@ class ConfigBlockFieldPluginBlindTest extends TestCase
         );
     }
 
-    public function testC1_3ExplicitConfigPathLookupUsesFieldConfigPath(): void
+    public function testC13ExplicitConfigPathLookupUsesFieldConfigPath(): void
     {
         $field = $this->createField('custom/stored/path', 'section/group/field');
         $this->structure->method('getElement')->with('section/group/field')->willReturn(null);
@@ -125,7 +125,7 @@ class ConfigBlockFieldPluginBlindTest extends TestCase
         );
     }
 
-    public function testC1_4NoFieldFoundSkipsDetectorAndKeepsHtml(): void
+    public function testC14NoFieldFoundSkipsDetectorAndKeepsHtml(): void
     {
         $this->structure->method('getElement')->willReturn(null);
         $this->structure->method('getElementByConfigPath')->willReturn(null);
@@ -142,7 +142,7 @@ class ConfigBlockFieldPluginBlindTest extends TestCase
         self::assertSame('<span>original</span>', $element->getData('after_element_html'));
     }
 
-    public function testC1_5LegacyTooltipFlagSkipsDetector(): void
+    public function testC15LegacyTooltipFlagSkipsDetector(): void
     {
         $this->scopeConfig->method('isSetFlag')->with(self::LEGACY_FLAG)->willReturn(true);
         $field = $this->createField('payment/free/title', 'payment_us/free/title');
