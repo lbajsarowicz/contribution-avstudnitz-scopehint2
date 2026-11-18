@@ -9,14 +9,15 @@ use AvS\ScopeHint\Service\ValueFormatter\DefaultFormatter;
 use Magento\Config\Model\Config\Structure\Element\Field;
 use Magento\Framework\Escaper;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class DefaultFormatterTest extends TestCase
 {
-    /** @var OptionLabelResolver&MockObject */
+    /** @var OptionLabelResolver&(MockObject|Stub) */
     private $labelResolver;
 
-    /** @var Escaper&MockObject */
+    /** @var Escaper&Stub */
     private $escaper;
 
     /** @var DefaultFormatter */
@@ -24,8 +25,14 @@ class DefaultFormatterTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->labelResolver = $this->createMock(OptionLabelResolver::class);
-        $this->escaper = $this->createMock(Escaper::class);
+        $this->configureFixture();
+}
+    private function configureFixture(
+        ?OptionLabelResolver $labelResolver = null
+    ): void
+    {
+        $this->labelResolver = $labelResolver ?? $this->createStub(OptionLabelResolver::class);
+        $this->escaper = $this->createStub(Escaper::class);
         $this->escaper->method('escapeHtml')->willReturnCallback(static function ($v) {
             return htmlspecialchars((string) $v, ENT_QUOTES);
         });
@@ -35,15 +42,19 @@ class DefaultFormatterTest extends TestCase
 
     public function testSupportsAlwaysReturnsTrue(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
 
         self::assertTrue($this->formatter->supports($field));
     }
 
     public function testFormatScalarValueDelegatesToLabelResolver(): void
     {
-        $field = $this->createMock(Field::class);
-        $this->labelResolver->method('resolve')->with($field, '1')->willReturn('Enabled');
+        $this->configureFixture(
+            labelResolver: $this->createMock(OptionLabelResolver::class)
+        );
+        $field = $this->createStub(Field::class);
+        $this->labelResolver->expects(self::atLeastOnce())
+            ->method('resolve')->with($field, '1')->willReturn('Enabled');
 
         $result = $this->formatter->format('1', $field);
 
@@ -52,7 +63,7 @@ class DefaultFormatterTest extends TestCase
 
     public function testFormatArrayValueReturnsComplexValue(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
 
         $result = $this->formatter->format(['a' => 1], $field);
 
@@ -61,7 +72,7 @@ class DefaultFormatterTest extends TestCase
 
     public function testFormatEscapesHtml(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
         $this->labelResolver->method('resolve')->willReturn('<b>bold</b>');
 
         $result = $this->formatter->format('<b>bold</b>', $field);

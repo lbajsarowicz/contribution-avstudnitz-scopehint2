@@ -19,19 +19,19 @@ class SerializedArrayFormatterGapTest extends TestCase
 
     protected function setUp(): void
     {
-        $escaper = $this->createMock(Escaper::class);
+        $escaper = $this->createStub(Escaper::class);
         $escaper->method('escapeHtml')->willReturnCallback(
             static function ($value) {
                 return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
             }
         );
         $this->formatter = new SerializedArrayFormatter($escaper);
-        $this->field = $this->createMock(Field::class);
+        $this->field = $this->createStub(Field::class);
     }
 
     public function testLegacyPhpSerializedParentIsDiffed(): void
     {
-        $parent = serialize([['title' => 'A']]);
+        $parent = 'a:1:{i:0;a:1:{s:5:"title";s:1:"A";}}';
 
         self::assertSame(
             '1 row; row 1: title “B”',
@@ -41,7 +41,7 @@ class SerializedArrayFormatterGapTest extends TestCase
 
     public function testLegacyPhpSerializedValueIsDiffed(): void
     {
-        $value = serialize([['title' => 'B']]);
+        $value = 'a:1:{i:0;a:1:{s:5:"title";s:1:"B";}}';
 
         self::assertSame(
             '1 row; row 1: title “B”',
@@ -51,7 +51,7 @@ class SerializedArrayFormatterGapTest extends TestCase
 
     public function testSerializedObjectIsNotInstantiatedAndFallsBack(): void
     {
-        $parent = serialize(new \stdClass());
+        $parent = 'O:8:"stdClass":0:{}';
 
         self::assertSame(
             '(serialized data differs)',

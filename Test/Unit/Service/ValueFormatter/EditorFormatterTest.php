@@ -16,14 +16,15 @@ use Magento\Framework\Module\Manager as ModuleManager;
 use Magento\Framework\View\Element\BlockFactory;
 use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class EditorFormatterTest extends TestCase
 {
-    /** @var StripTags&MockObject */
+    /** @var StripTags&Stub */
     private $stripTags;
 
-    /** @var Escaper&MockObject */
+    /** @var Escaper&Stub */
     private $escaper;
 
     /** @var EditorFormatter */
@@ -31,11 +32,11 @@ class EditorFormatterTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->stripTags = $this->createMock(StripTags::class);
+        $this->stripTags = $this->createStub(StripTags::class);
         $this->stripTags->method('filter')->willReturnCallback(static function ($v) {
             return strip_tags((string) $v);
         });
-        $this->escaper = $this->createMock(Escaper::class);
+        $this->escaper = $this->createStub(Escaper::class);
         $this->escaper->method('escapeHtml')->willReturnArgument(0);
 
         $this->formatter = new EditorFormatter($this->stripTags, $this->escaper);
@@ -67,7 +68,7 @@ class EditorFormatterTest extends TestCase
 
     public function testFormatStripsHtmlTags(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
 
         $result = $this->formatter->format('<p>Hello <b>world</b></p>', $field);
 
@@ -77,7 +78,7 @@ class EditorFormatterTest extends TestCase
 
     public function testFormatTruncatesLongContent(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
         $longText = str_repeat('a', 100);
 
         $result = $this->formatter->format($longText, $field);
@@ -89,7 +90,7 @@ class EditorFormatterTest extends TestCase
 
     public function testFormatAppendsHtmlContentDiffersLabel(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
 
         $result = $this->formatter->format('<p>Short</p>', $field);
 
@@ -98,7 +99,7 @@ class EditorFormatterTest extends TestCase
 
     public function testFormatEmptyValueReturnsEmptyString(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
 
         self::assertSame('', $this->formatter->format('', $field));
         self::assertSame('', $this->formatter->format(null, $field));
@@ -106,7 +107,7 @@ class EditorFormatterTest extends TestCase
 
     public function testFormatShortContentIsNotTruncated(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
         $short = 'Hello world';
 
         $result = $this->formatter->format($short, $field);
@@ -121,13 +122,13 @@ class EditorFormatterTest extends TestCase
     private function createField(array $data): Field
     {
         $field = new Field(
-            $this->createMock(StoreManagerInterface::class),
-            $this->createMock(ModuleManager::class),
-            $this->createMock(BackendFactory::class),
-            $this->createMock(SourceFactory::class),
-            $this->createMock(CommentFactory::class),
-            $this->createMock(BlockFactory::class),
-            $this->createMock(Mapper::class)
+            $this->createStub(StoreManagerInterface::class),
+            $this->createStub(ModuleManager::class),
+            $this->createStub(BackendFactory::class),
+            $this->createStub(SourceFactory::class),
+            $this->createStub(CommentFactory::class),
+            $this->createStub(BlockFactory::class),
+            $this->createStub(Mapper::class)
         );
         $field->setData($data + ['id' => 'editor_field'], 'default');
 

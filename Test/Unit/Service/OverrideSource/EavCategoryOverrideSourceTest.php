@@ -19,27 +19,28 @@ use Magento\Store\Api\Data\StoreInterface;
 use Magento\Store\Api\Data\WebsiteInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class EavCategoryOverrideSourceTest extends TestCase
 {
-    /** @var CategoryRepositoryInterface&MockObject */
+    /** @var CategoryRepositoryInterface&Stub */
     private $categoryRepository;
 
-    /** @var StoreManagerInterface&MockObject */
+    /** @var StoreManagerInterface&(MockObject|Stub) */
     private $storeManager;
 
-    /** @var ScopeConfigInterface&MockObject */
+    /** @var ScopeConfigInterface&(MockObject|Stub) */
     private $scopeConfig;
 
-    /** @var EavConfig&MockObject */
+    /** @var EavConfig&Stub */
     private $eavConfig;
 
-    /** @var Escaper&MockObject */
+    /** @var Escaper&Stub */
     private $escaper;
 
-    /** @var LoggerInterface&MockObject */
+    /** @var LoggerInterface&(MockObject|Stub) */
     private $logger;
 
     /** @var EavCategoryOverrideSource */
@@ -47,20 +48,27 @@ class EavCategoryOverrideSourceTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->categoryRepository = $this->createMock(CategoryRepositoryInterface::class);
-        $this->storeManager       = $this->createMock(StoreManagerInterface::class);
-        $this->scopeConfig        = $this->createMock(ScopeConfigInterface::class);
-        $this->eavConfig          = $this->createMock(EavConfig::class);
-        $this->escaper            = $this->createMock(Escaper::class);
-        $this->logger             = $this->createMock(LoggerInterface::class);
+        $this->configureFixture();
+}
+    private function configureFixture(
+        ?StoreManagerInterface $storeManager = null,
+        ?LoggerInterface $logger = null
+    ): void
+    {
+        $this->categoryRepository = $this->createStub(CategoryRepositoryInterface::class);
+        $this->storeManager = $storeManager ?? $this->createStub(StoreManagerInterface::class);
+        $this->scopeConfig = $this->createStub(ScopeConfigInterface::class);
+        $this->eavConfig = $this->createStub(EavConfig::class);
+        $this->escaper = $this->createStub(Escaper::class);
+        $this->logger = $logger ?? $this->createStub(LoggerInterface::class);
 
         $this->escaper->method('escapeHtml')->willReturnArgument(0);
 
         // Default: max_stores not exceeded
-        $this->scopeConfig
-            ->method('getValue')
-            ->with(EavCategoryOverrideSource::XML_PATH_MAX_STORES)
-            ->willReturn(50);
+        $this->scopeConfig->method('getValue')->willReturnCallback(static function ($path) {
+            self::assertSame(EavCategoryOverrideSource::XML_PATH_MAX_STORES, $path);
+            return 50;
+        });
 
         $this->source = new EavCategoryOverrideSource(
             $this->categoryRepository,
@@ -146,11 +154,15 @@ class EavCategoryOverrideSourceTest extends TestCase
 
     public function testGetOverridesDetectsStoreOverride(): void
     {
+        $this->configureFixture(
+            storeManager: $this->createMock(StoreManagerInterface::class)
+        );
         $store = $this->createStore(2, 'de', 'German Store', 1);
         $this->storeManager->method('getStores')->willReturn([$store]);
 
         $website = $this->createWebsite(1, 'base');
-        $this->storeManager->method('getWebsite')->with(1)->willReturn($website);
+        $this->storeManager->expects(self::atLeastOnce())
+            ->method('getWebsite')->with(1)->willReturn($website);
 
         $defaultCategory = $this->createCategory(10, 'name', 'Shoes');
         $storeCategory   = $this->createCategory(10, 'name', 'Schuhe');
@@ -207,6 +219,9 @@ class EavCategoryOverrideSourceTest extends TestCase
 
     public function testGetOverridesLogsWarningAndReturnsEmptyWhenStoreCountExceedsMax(): void
     {
+        $this->configureFixture(
+            logger: $this->createMock(LoggerInterface::class)
+        );
         $stores = [
             $this->createStore(1, 's1', 'Store 1', 1),
             $this->createStore(2, 's2', 'Store 2', 1),
@@ -215,7 +230,8 @@ class EavCategoryOverrideSourceTest extends TestCase
         $this->storeManager->method('getStores')->willReturn($stores);
 
         $scopeConfig = $this->createMock(ScopeConfigInterface::class);
-        $scopeConfig->method('getValue')
+        $scopeConfig->expects(self::atLeastOnce())
+            ->method('getValue')
             ->with(EavCategoryOverrideSource::XML_PATH_MAX_STORES)
             ->willReturn(2);
 
@@ -245,12 +261,10 @@ class EavCategoryOverrideSourceTest extends TestCase
      */
     private function createCategory(int $id, string $attributeCode, $value): CategoryInterface
     {
-        $category = $this->getMockBuilder(CategoryInterface::class)
-            ->disableOriginalConstructor()
-            ->addMethods(['getData'])
-            ->getMockForAbstractClass();
+        $category = $this->createMock(CategoryWithDataInterface::class);
         $category->method('getId')->willReturn($id);
-        $category->method('getData')
+        $category->expects(self::atLeastOnce())
+            ->method('getData')
             ->with($attributeCode)
             ->willReturn($value);
 
@@ -259,7 +273,7 @@ class EavCategoryOverrideSourceTest extends TestCase
 
     private function createStore(int $id, string $code, string $name, int $websiteId): StoreInterface
     {
-        $store = $this->createMock(StoreInterface::class);
+        $store = $this->createStub(StoreInterface::class);
         $store->method('getId')->willReturn($id);
         $store->method('getCode')->willReturn($code);
         $store->method('getName')->willReturn($name);
@@ -270,7 +284,7 @@ class EavCategoryOverrideSourceTest extends TestCase
 
     private function createWebsite(int $id, string $code): WebsiteInterface
     {
-        $website = $this->createMock(WebsiteInterface::class);
+        $website = $this->createStub(WebsiteInterface::class);
         $website->method('getId')->willReturn($id);
         $website->method('getCode')->willReturn($code);
 
@@ -279,7 +293,7 @@ class EavCategoryOverrideSourceTest extends TestCase
 
     private function stubAttribute(int $scope): void
     {
-        $attribute = $this->createMock(CatalogAttribute::class);
+        $attribute = $this->createStub(CatalogAttribute::class);
         $attribute->method('getAttributeId')->willReturn(42);
         $attribute->method('getIsGlobal')->willReturn($scope);
         $this->eavConfig->method('getAttribute')->willReturn($attribute);

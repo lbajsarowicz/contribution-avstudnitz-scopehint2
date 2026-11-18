@@ -11,14 +11,15 @@ use AvS\ScopeHint\Service\EavValueFormatter\PageBuilderFormatter;
 use AvS\ScopeHint\Service\OverrideSource\EavProductOverrideSource;
 use AvS\ScopeHint\Service\OverrideSource\PageBuilderProductOverrideSource;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class PageBuilderProductOverrideSourceTest extends TestCase
 {
-    /** @var EavProductOverrideSource&MockObject */
+    /** @var EavProductOverrideSource&(MockObject|Stub) */
     private $eavProductSource;
 
-    /** @var PageBuilderFormatter&MockObject */
+    /** @var PageBuilderFormatter&(MockObject|Stub) */
     private $formatter;
 
     /** @var PageBuilderProductOverrideSource */
@@ -26,13 +27,24 @@ class PageBuilderProductOverrideSourceTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->eavProductSource = $this->createMock(EavProductOverrideSource::class);
-        $this->formatter = $this->createMock(PageBuilderFormatter::class);
+        $this->configureFixture();
+}
+    private function configureFixture(
+        ?EavProductOverrideSource $eavProductSource = null,
+        ?PageBuilderFormatter $formatter = null
+    ): void
+    {
+        $this->eavProductSource = $eavProductSource ?? $this->createStub(EavProductOverrideSource::class);
+        $this->formatter = $formatter ?? $this->createStub(PageBuilderFormatter::class);
         $this->source = new PageBuilderProductOverrideSource($this->eavProductSource, $this->formatter);
     }
 
     public function testSupportsPageBuilderProductField(): void
     {
+        $this->configureFixture(
+            eavProductSource: $this->createMock(EavProductOverrideSource::class),
+            formatter: $this->createMock(PageBuilderFormatter::class)
+        );
         $fieldMeta = $this->pageBuilderMeta();
         $this->eavProductSource->expects(self::once())->method('supports')
             ->with('product', $fieldMeta)->willReturn(true);
@@ -43,6 +55,9 @@ class PageBuilderProductOverrideSourceTest extends TestCase
 
     public function testDoesNotInspectPageBuilderMetadataWhenGenericEavFieldIsUnsupported(): void
     {
+        $this->configureFixture(
+            formatter: $this->createMock(PageBuilderFormatter::class)
+        );
         $fieldMeta = $this->pageBuilderMeta();
         $this->eavProductSource->method('supports')->willReturn(false);
         $this->formatter->expects(self::never())->method('supports');
@@ -52,15 +67,22 @@ class PageBuilderProductOverrideSourceTest extends TestCase
 
     public function testDoesNotSupportNormalProductEavField(): void
     {
+        $this->configureFixture(
+            formatter: $this->createMock(PageBuilderFormatter::class)
+        );
         $fieldMeta = ['code' => 'name', 'globalScope' => false];
         $this->eavProductSource->method('supports')->willReturn(true);
-        $this->formatter->method('supports')->with($fieldMeta)->willReturn(false);
+        $this->formatter->expects(self::atLeastOnce())
+            ->method('supports')->with($fieldMeta)->willReturn(false);
 
         self::assertFalse($this->source->supports('product', $fieldMeta));
     }
 
     public function testDelegatesDetectionAndPreservesScopeMetadataAndRawValues(): void
     {
+        $this->configureFixture(
+            eavProductSource: $this->createMock(EavProductOverrideSource::class)
+        );
         $fieldMeta = $this->pageBuilderMeta();
         $germanRaw = '<div data-content-type="text"><p>German content</p></div>';
         $frenchRaw = '<div data-content-type="text"><p>French content</p></div>';
@@ -108,6 +130,9 @@ class PageBuilderProductOverrideSourceTest extends TestCase
 
     public function testReturnsEmptyResultWhenGenericSourceFindsNoOverrides(): void
     {
+        $this->configureFixture(
+            formatter: $this->createMock(PageBuilderFormatter::class)
+        );
         $this->eavProductSource->method('getOverrides')->willReturn(new OverrideResult([]));
         $this->formatter->expects(self::never())->method('format');
 

@@ -21,23 +21,24 @@ use Magento\Store\Api\Data\WebsiteInterface;
 use Magento\Store\Api\StoreRepositoryInterface;
 use Magento\Store\Api\WebsiteRepositoryInterface;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class ScopeOverrideDetectorTest extends TestCase
 {
-    /** @var ScopeConfigInterface&MockObject */
+    /** @var ScopeConfigInterface&Stub */
     private $scopeConfig;
 
-    /** @var WebsiteRepositoryInterface&MockObject */
+    /** @var WebsiteRepositoryInterface&(MockObject|Stub) */
     private $websiteRepository;
 
-    /** @var StoreRepositoryInterface&MockObject */
+    /** @var StoreRepositoryInterface&Stub */
     private $storeRepository;
 
-    /** @var RequestInterface&MockObject */
+    /** @var RequestInterface&Stub */
     private $request;
 
-    /** @var Escaper&MockObject */
+    /** @var Escaper&Stub */
     private $escaper;
 
     /** @var ScopeOverrideDetector */
@@ -46,39 +47,49 @@ class ScopeOverrideDetectorTest extends TestCase
     /** @var array<int, DataObject> */
     private $configRecords = [];
 
-    /** @var CollectionFactory&MockObject */
+    /** @var CollectionFactory&(MockObject|Stub) */
     private $collectionFactory;
 
     protected function setUp(): void
     {
-        $this->scopeConfig = $this->createMock(ScopeConfigInterface::class);
-        $this->websiteRepository = $this->createMock(WebsiteRepositoryInterface::class);
-        $this->storeRepository = $this->createMock(StoreRepositoryInterface::class);
-        $this->request = $this->createMock(RequestInterface::class);
-        $this->escaper = $this->createMock(Escaper::class);
+        $this->configureFixture();
+}
+    private function configureFixture(
+        ?WebsiteRepositoryInterface $websiteRepository = null,
+        ?CollectionFactory $collectionFactory = null
+    ): void
+    {
+        $this->scopeConfig = $this->createStub(ScopeConfigInterface::class);
+        $this->websiteRepository = $websiteRepository ?? $this->createStub(WebsiteRepositoryInterface::class);
+        $this->storeRepository = $this->createStub(StoreRepositoryInterface::class);
+        $this->request = $this->createStub(RequestInterface::class);
+        $this->escaper = $this->createStub(Escaper::class);
         $this->escaper
             ->method('escapeHtml')
             ->willReturnCallback(static function ($v) {
                 return is_string($v) ? htmlspecialchars($v, ENT_QUOTES) : (string) $v;
             });
 
-        $defaultFormatter = $this->createMock(ValueFormatterInterface::class);
+        $defaultFormatter = $this->createStub(ValueFormatterInterface::class);
         $defaultFormatter->method('format')->willReturnCallback(static function ($value) {
             if (is_array($value)) {
                 return '(complex value)';
             }
             return htmlspecialchars((string) $value, ENT_QUOTES);
         });
-        $pool = $this->createMock(Pool::class);
+        $pool = $this->createStub(Pool::class);
         $pool->method('resolve')->willReturn($defaultFormatter);
-        $collection = $this->createMock(Collection::class);
-        $collection->method('addFieldToFilter')
-            ->with('scope', ['in' => ['websites', 'stores']])
-            ->willReturnSelf();
+        $collection = $this->createStub(Collection::class);
+        $collection->method('addFieldToFilter')->willReturnCallback(
+            static function ($field, $condition) use ($collection) {
+                self::assertSame('scope', $field);
+                self::assertSame(['in' => ['websites', 'stores']], $condition);
+                return $collection;
+            });
         $collection->method('getIterator')->willReturnCallback(function () {
             return new \ArrayIterator($this->configRecords);
         });
-        $this->collectionFactory = $this->createMock(CollectionFactory::class);
+        $this->collectionFactory = $collectionFactory ?? $this->createStub(CollectionFactory::class);
         $this->collectionFactory->method('create')->willReturn($collection);
 
         $this->detector = new ScopeOverrideDetector(
@@ -111,7 +122,10 @@ class ScopeOverrideDetectorTest extends TestCase
         $this->stubRequestParams(null, null);
         $website = $this->createWebsite(2, 'main_website', 'Main Website');
         $this->websiteRepository->method('getList')->willReturn([$website]);
-        $this->websiteRepository->method('getById')->with(2)->willReturn($website);
+        $this->websiteRepository->method('getById')->willReturnCallback(static function ($id) use ($website) {
+            self::assertSame(2, $id);
+            return $website;
+        });
         $this->storeRepository->method('getList')->willReturn([]);
 
         $this->scopeConfig
@@ -132,12 +146,16 @@ class ScopeOverrideDetectorTest extends TestCase
 
     public function testDetectsStoreOverrideWithinSameWebsite(): void
     {
+        $this->configureFixture(
+            websiteRepository: $this->createMock(WebsiteRepositoryInterface::class)
+        );
         $this->stubExplicitValue('payment/checkmo/order_status', 'stores', 5, 'processing');
         $this->stubRequestParams(null, null);
         $website = $this->createWebsite(2, 'main_website', 'Main Website');
         $store = $this->createStore(5, 'us_en', 'US Store', 2);
         $this->websiteRepository->method('getList')->willReturn([]);
-        $this->websiteRepository->method('getById')->with(2)->willReturn($website);
+        $this->websiteRepository->expects(self::atLeastOnce())
+            ->method('getById')->with(2)->willReturn($website);
         $this->storeRepository->method('getList')->willReturn([$store]);
 
         $this->scopeConfig
@@ -158,6 +176,9 @@ class ScopeOverrideDetectorTest extends TestCase
 
     public function testSkipsStoresOutsideCurrentWebsiteScope(): void
     {
+        $this->configureFixture(
+            websiteRepository: $this->createMock(WebsiteRepositoryInterface::class)
+        );
         $this->stubRequestParams('main_website', null);
         $this->stubExplicitValue('general/locale/code', 'stores', 5, 'fr_FR');
         $this->stubExplicitValue('general/locale/code', 'stores', 6, 'de_DE');
@@ -165,7 +186,8 @@ class ScopeOverrideDetectorTest extends TestCase
         $otherStore = $this->createStore(6, 'de_de', 'DE Store', 3);
         $website = $this->createWebsite(2, 'main_website', 'Main Website');
         $this->websiteRepository->method('getList')->willReturn([]);
-        $this->websiteRepository->method('getById')->with(2)->willReturn($website);
+        $this->websiteRepository->expects(self::atLeastOnce())
+            ->method('getById')->with(2)->willReturn($website);
         $this->storeRepository->method('getList')->willReturn([$matchingStore, $otherStore]);
 
         $this->scopeConfig
@@ -173,7 +195,8 @@ class ScopeOverrideDetectorTest extends TestCase
             ->willReturnMap([
                 ['general/locale/code', 'website', 2, 'en_US'],
             ]);
-        $this->websiteRepository->method('get')->with('main_website')->willReturn($website);
+        $this->websiteRepository->expects(self::atLeastOnce())
+            ->method('get')->with('main_website')->willReturn($website);
 
         $result = $this->detector->getOverrides('general/locale/code');
 
@@ -187,7 +210,10 @@ class ScopeOverrideDetectorTest extends TestCase
         $store = $this->createStore(5, 'us_en', 'US Store', 2);
         $website = $this->createWebsite(2, 'main_website', 'Main Website');
         $this->websiteRepository->method('getList')->willReturn([]);
-        $this->websiteRepository->method('getById')->with(2)->willReturn($website);
+        $this->websiteRepository->method('getById')->willReturnCallback(static function ($id) use ($website) {
+            self::assertSame(2, $id);
+            return $website;
+        });
         $this->storeRepository->method('getList')->willReturn([$store]);
         $this->scopeConfig->method('getValue')->willReturn('value');
 
@@ -264,6 +290,9 @@ class ScopeOverrideDetectorTest extends TestCase
     /** @param mixed $value */
     public function testLoadsExplicitValuesOnceForAllPaths(): void
     {
+        $this->configureFixture(
+            collectionFactory: $this->createMock(CollectionFactory::class)
+        );
         $this->collectionFactory->expects(self::once())->method('create');
         $this->stubExplicitValue('general/locale/code', 'websites', 2, 'de_DE');
         $this->stubExplicitValue('general/store_information/name', 'websites', 2, 'Shop DE');
@@ -297,7 +326,7 @@ class ScopeOverrideDetectorTest extends TestCase
 
     private function createWebsite(int $id, string $code, string $name): WebsiteInterface
     {
-        $website = $this->createMock(WebsiteInterface::class);
+        $website = $this->createStub(WebsiteInterface::class);
         $website->method('getId')->willReturn($id);
         $website->method('getCode')->willReturn($code);
         $website->method('getName')->willReturn($name);
@@ -306,7 +335,7 @@ class ScopeOverrideDetectorTest extends TestCase
 
     private function createStore(int $id, string $code, string $name, int $websiteId): StoreInterface
     {
-        $store = $this->createMock(StoreInterface::class);
+        $store = $this->createStub(StoreInterface::class);
         $store->method('getId')->willReturn($id);
         $store->method('getCode')->willReturn($code);
         $store->method('getName')->willReturn($name);

@@ -16,13 +16,13 @@ class PageBuilderFormatterBlindTest extends TestCase
 
     protected function setUp(): void
     {
-        $stripTags = $this->createMock(StripTags::class);
+        $stripTags = $this->createStub(StripTags::class);
         $stripTags->method('filter')->willReturnCallback(
             static function ($value) {
                 return strip_tags((string) $value);
             }
         );
-        $escaper = $this->createMock(Escaper::class);
+        $escaper = $this->createStub(Escaper::class);
         $escaper->method('escapeHtml')->willReturnCallback(
             static function ($value) {
                 return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');

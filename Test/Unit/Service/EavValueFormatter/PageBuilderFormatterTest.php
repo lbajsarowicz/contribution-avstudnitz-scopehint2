@@ -8,14 +8,15 @@ use AvS\ScopeHint\Service\EavValueFormatter\PageBuilderFormatter;
 use Magento\Framework\Escaper;
 use Magento\Framework\Filter\StripTags;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class PageBuilderFormatterTest extends TestCase
 {
-    /** @var StripTags&MockObject */
+    /** @var StripTags&Stub */
     private $stripTags;
 
-    /** @var Escaper&MockObject */
+    /** @var Escaper&Stub */
     private $escaper;
 
     /** @var PageBuilderFormatter */
@@ -23,12 +24,12 @@ class PageBuilderFormatterTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->stripTags = $this->createMock(StripTags::class);
+        $this->stripTags = $this->createStub(StripTags::class);
         $this->stripTags->method('filter')->willReturnCallback(static function ($value) {
             return strip_tags((string) $value);
         });
 
-        $this->escaper = $this->createMock(Escaper::class);
+        $this->escaper = $this->createStub(Escaper::class);
         $this->escaper->method('escapeHtml')->willReturnCallback(static function ($value) {
             return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
         });

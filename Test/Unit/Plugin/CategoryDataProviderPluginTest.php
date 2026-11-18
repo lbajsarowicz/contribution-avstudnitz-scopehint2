@@ -16,23 +16,24 @@ use Magento\Framework\Escaper;
 use Magento\Framework\Stdlib\ArrayManager;
 use Magento\Framework\View\LayoutInterface;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class CategoryDataProviderPluginTest extends TestCase
 {
-    /** @var OverrideSourcePool&MockObject */
+    /** @var OverrideSourcePool&(MockObject|Stub) */
     private $pool;
 
-    /** @var LayoutInterface&MockObject */
+    /** @var LayoutInterface&(MockObject|Stub) */
     private $layout;
 
-    /** @var ScopeConfigInterface&MockObject */
+    /** @var ScopeConfigInterface&(MockObject|Stub) */
     private $scopeConfig;
 
-    /** @var DataProvider&MockObject */
+    /** @var DataProvider&Stub */
     private $subject;
 
-    /** @var Escaper&MockObject */
+    /** @var Escaper&Stub */
     private $escaper;
 
     /** @var CategoryDataProviderPlugin */
@@ -40,17 +41,22 @@ class CategoryDataProviderPluginTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->pool        = $this->createMock(OverrideSourcePool::class);
-        $this->layout      = $this->createMock(LayoutInterface::class);
-        $this->scopeConfig = $this->createMock(ScopeConfigInterface::class);
-        $this->escaper     = $this->createMock(Escaper::class);
+        $this->configureFixture();
+}
+    private function configureFixture(
+        ?OverrideSourcePool $pool = null,
+        ?LayoutInterface $layout = null,
+        ?ScopeConfigInterface $scopeConfig = null
+    ): void
+    {
+        $this->pool = $pool ?? $this->createStub(OverrideSourcePool::class);
+        $this->layout = $layout ?? $this->createStub(LayoutInterface::class);
+        $this->scopeConfig = $scopeConfig ?? $this->createStub(ScopeConfigInterface::class);
+        $this->escaper = $this->createStub(Escaper::class);
         $this->escaper->method('escapeHtml')->willReturnCallback(static function ($value) {
             return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
         });
-        $this->subject     = $this->getMockBuilder(DataProvider::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['getCurrentCategory'])
-            ->getMock();
+        $this->subject = $this->createStub(DataProvider::class);
 
         $this->plugin = new CategoryDataProviderPlugin(
             $this->pool,
@@ -104,7 +110,7 @@ class CategoryDataProviderPluginTest extends TestCase
     {
         $this->stubCategory(10);
 
-        $empty = $this->createMock(OverrideResultInterface::class);
+        $empty = $this->createStub(OverrideResultInterface::class);
         $empty->method('isEmpty')->willReturn(true);
         $this->pool->method('resolve')->willReturn($empty);
 
@@ -120,17 +126,21 @@ class CategoryDataProviderPluginTest extends TestCase
 
     public function testSetsAdditionalInfoWhenOverridesExist(): void
     {
+        $this->configureFixture(
+            layout: $this->createMock(LayoutInterface::class)
+        );
         $this->stubCategory(10);
         $this->scopeConfig->method('isSetFlag')->willReturn(false);
 
-        $overrides = $this->createMock(OverrideResultInterface::class);
+        $overrides = $this->createStub(OverrideResultInterface::class);
         $overrides->method('isEmpty')->willReturn(false);
         $this->pool->method('resolve')->willReturn($overrides);
 
-        $popoverBlock = $this->createMock(Popover::class);
+        $popoverBlock = $this->createStub(Popover::class);
         $popoverBlock->method('toHtml')->willReturn('<div data-scopehint-popover="1">POP</div>');
         $popoverBlock->method('setOverrides')->willReturnSelf();
-        $this->layout->method('createBlock')->with(Popover::class)->willReturn($popoverBlock);
+        $this->layout->expects(self::atLeastOnce())
+            ->method('createBlock')->with(Popover::class)->willReturn($popoverBlock);
 
         $meta = $this->buildMeta('general', 'name', ['code' => 'name']);
 
@@ -151,11 +161,11 @@ class CategoryDataProviderPluginTest extends TestCase
         $this->stubCategory(10);
         $this->scopeConfig->method('isSetFlag')->willReturn(false);
 
-        $overrides = $this->createMock(OverrideResultInterface::class);
+        $overrides = $this->createStub(OverrideResultInterface::class);
         $overrides->method('isEmpty')->willReturn(false);
         $this->pool->method('resolve')->willReturn($overrides);
 
-        $popoverBlock = $this->createMock(Popover::class);
+        $popoverBlock = $this->createStub(Popover::class);
         $popoverBlock->method('toHtml')->willReturn('<div data-scopehint-popover="1">POP</div>');
         $popoverBlock->method('setOverrides')->willReturnSelf();
         $this->layout->method('createBlock')->willReturn($popoverBlock);
@@ -172,14 +182,18 @@ class CategoryDataProviderPluginTest extends TestCase
 
     public function testSetsTooltipDescriptionInLegacyMode(): void
     {
+        $this->configureFixture(
+            scopeConfig: $this->createMock(ScopeConfigInterface::class)
+        );
         $this->stubCategory(10);
-        $this->scopeConfig->method('isSetFlag')->with('dev/debug/scopehint_legacy_tooltip')->willReturn(true);
+        $this->scopeConfig->expects(self::atLeastOnce())
+            ->method('isSetFlag')->with('dev/debug/scopehint_legacy_tooltip')->willReturn(true);
 
-        $scopeOverride = $this->createMock(ScopeOverrideInterface::class);
+        $scopeOverride = $this->createStub(ScopeOverrideInterface::class);
         $scopeOverride->method('getScopeName')->willReturn('German Store');
         $scopeOverride->method('getDisplayValue')->willReturn('Schuhe');
 
-        $overrides = $this->createMock(OverrideResultInterface::class);
+        $overrides = $this->createStub(OverrideResultInterface::class);
         $overrides->method('isEmpty')->willReturn(false);
         $overrides->method('getOverrides')->willReturn([$scopeOverride]);
         $this->pool->method('resolve')->willReturn($overrides);
@@ -196,6 +210,9 @@ class CategoryDataProviderPluginTest extends TestCase
 
     public function testPoolReceivesEntityTypeIdAndEditedStore(): void
     {
+        $this->configureFixture(
+            pool: $this->createMock(OverrideSourcePool::class)
+        );
         $this->stubCategory(42, 3);
         $this->scopeConfig->method('isSetFlag')->willReturn(false);
 
@@ -213,6 +230,9 @@ class CategoryDataProviderPluginTest extends TestCase
 
     public function testSkipsFieldsWithNoConfig(): void
     {
+        $this->configureFixture(
+            pool: $this->createMock(OverrideSourcePool::class)
+        );
         $this->stubCategory(10);
 
         // Pool should never be called when the field has no arguments/data/config
@@ -245,7 +265,7 @@ class CategoryDataProviderPluginTest extends TestCase
 
     private function createCategory(?int $id, int $storeId = 0): Category
     {
-        $category = $this->createMock(Category::class);
+        $category = $this->createStub(Category::class);
         $category->method('getId')->willReturn($id);
         $category->method('getStoreId')->willReturn($storeId);
 

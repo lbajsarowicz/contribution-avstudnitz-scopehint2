@@ -16,26 +16,27 @@ use Magento\Framework\Escaper;
 use Magento\Framework\Registry;
 use Magento\Framework\View\LayoutInterface;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class ProductEavDataProviderPluginTest extends TestCase
 {
-    /** @var OverrideSourcePool&MockObject */
+    /** @var OverrideSourcePool&(MockObject|Stub) */
     private $pool;
 
-    /** @var LayoutInterface&MockObject */
+    /** @var LayoutInterface&(MockObject|Stub) */
     private $layout;
 
-    /** @var ScopeConfigInterface&MockObject */
+    /** @var ScopeConfigInterface&(MockObject|Stub) */
     private $scopeConfig;
 
-    /** @var Registry&MockObject */
+    /** @var Registry&(MockObject|Stub) */
     private $registry;
 
-    /** @var Escaper&MockObject */
+    /** @var Escaper&Stub */
     private $escaper;
 
-    /** @var Eav&MockObject */
+    /** @var Eav&Stub */
     private $subject;
 
     /** @var ProductEavDataProviderPlugin */
@@ -43,15 +44,24 @@ class ProductEavDataProviderPluginTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->pool        = $this->createMock(OverrideSourcePool::class);
-        $this->layout      = $this->createMock(LayoutInterface::class);
-        $this->scopeConfig = $this->createMock(ScopeConfigInterface::class);
-        $this->registry    = $this->createMock(Registry::class);
-        $this->escaper     = $this->createMock(Escaper::class);
+        $this->configureFixture();
+}
+    private function configureFixture(
+        ?OverrideSourcePool $pool = null,
+        ?LayoutInterface $layout = null,
+        ?ScopeConfigInterface $scopeConfig = null,
+        ?Registry $registry = null
+    ): void
+    {
+        $this->pool = $pool ?? $this->createStub(OverrideSourcePool::class);
+        $this->layout = $layout ?? $this->createStub(LayoutInterface::class);
+        $this->scopeConfig = $scopeConfig ?? $this->createStub(ScopeConfigInterface::class);
+        $this->registry = $registry ?? $this->createStub(Registry::class);
+        $this->escaper = $this->createStub(Escaper::class);
         $this->escaper->method('escapeHtml')->willReturnCallback(static function ($value) {
             return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
         });
-        $this->subject     = $this->createMock(Eav::class);
+        $this->subject = $this->createStub(Eav::class);
 
         $this->plugin = new ProductEavDataProviderPlugin(
             $this->pool,
@@ -73,7 +83,11 @@ class ProductEavDataProviderPluginTest extends TestCase
 
     public function testReturnsResultUnchangedWhenNoCurrentProduct(): void
     {
-        $this->registry->method('registry')->with('current_product')->willReturn(null);
+        $this->configureFixture(
+            registry: $this->createMock(Registry::class)
+        );
+        $this->registry->expects(self::atLeastOnce())
+            ->method('registry')->with('current_product')->willReturn(null);
 
         $result = $this->buildResult(['code' => 'name']);
 
@@ -84,9 +98,13 @@ class ProductEavDataProviderPluginTest extends TestCase
 
     public function testReturnsResultUnchangedWhenProductIdIsNull(): void
     {
-        $product = $this->createMock(Product::class);
+        $this->configureFixture(
+            registry: $this->createMock(Registry::class)
+        );
+        $product = $this->createStub(Product::class);
         $product->method('getId')->willReturn(null);
-        $this->registry->method('registry')->with('current_product')->willReturn($product);
+        $this->registry->expects(self::atLeastOnce())
+            ->method('registry')->with('current_product')->willReturn($product);
 
         $result = $this->buildResult(['code' => 'name']);
 
@@ -97,6 +115,9 @@ class ProductEavDataProviderPluginTest extends TestCase
 
     public function testReturnsResultUnchangedWhenPoolReturnsNull(): void
     {
+        $this->configureFixture(
+            registry: $this->createMock(Registry::class)
+        );
         $this->stubProduct(5);
         $this->pool->method('resolve')->willReturn(null);
 
@@ -110,9 +131,12 @@ class ProductEavDataProviderPluginTest extends TestCase
 
     public function testReturnsResultUnchangedWhenOverridesAreEmpty(): void
     {
+        $this->configureFixture(
+            registry: $this->createMock(Registry::class)
+        );
         $this->stubProduct(5);
 
-        $empty = $this->createMock(OverrideResultInterface::class);
+        $empty = $this->createStub(OverrideResultInterface::class);
         $empty->method('isEmpty')->willReturn(true);
         $this->pool->method('resolve')->willReturn($empty);
 
@@ -125,17 +149,22 @@ class ProductEavDataProviderPluginTest extends TestCase
 
     public function testSetsAdditionalInfoWhenOverridesExist(): void
     {
+        $this->configureFixture(
+            layout: $this->createMock(LayoutInterface::class),
+            registry: $this->createMock(Registry::class)
+        );
         $this->stubProduct(5);
         $this->scopeConfig->method('isSetFlag')->willReturn(false);
 
-        $overrides = $this->createMock(OverrideResultInterface::class);
+        $overrides = $this->createStub(OverrideResultInterface::class);
         $overrides->method('isEmpty')->willReturn(false);
         $this->pool->method('resolve')->willReturn($overrides);
 
-        $popoverBlock = $this->createMock(Popover::class);
+        $popoverBlock = $this->createStub(Popover::class);
         $popoverBlock->method('toHtml')->willReturn('<div data-scopehint-popover="1">POP</div>');
         $popoverBlock->method('setOverrides')->willReturnSelf();
-        $this->layout->method('createBlock')->with(Popover::class)->willReturn($popoverBlock);
+        $this->layout->expects(self::atLeastOnce())
+            ->method('createBlock')->with(Popover::class)->willReturn($popoverBlock);
 
         $result = $this->buildResult(['code' => 'meta_description']);
 
@@ -147,10 +176,15 @@ class ProductEavDataProviderPluginTest extends TestCase
 
     public function testSetsAdditionalInfoForPageBuilderAttributeMetadata(): void
     {
+        $this->configureFixture(
+            pool: $this->createMock(OverrideSourcePool::class),
+            layout: $this->createMock(LayoutInterface::class),
+            registry: $this->createMock(Registry::class)
+        );
         $this->stubProduct(5);
         $this->scopeConfig->method('isSetFlag')->willReturn(false);
 
-        $overrides = $this->createMock(OverrideResultInterface::class);
+        $overrides = $this->createStub(OverrideResultInterface::class);
         $overrides->method('isEmpty')->willReturn(false);
 
         $fieldMeta = [
@@ -162,10 +196,11 @@ class ProductEavDataProviderPluginTest extends TestCase
         $this->pool->expects(self::once())->method('resolve')->with('product', 5, $fieldMeta)
             ->willReturn($overrides);
 
-        $popoverBlock = $this->createMock(Popover::class);
+        $popoverBlock = $this->createStub(Popover::class);
         $popoverBlock->method('toHtml')->willReturn('<div data-scopehint-popover="1">POP</div>');
         $popoverBlock->method('setOverrides')->willReturnSelf();
-        $this->layout->method('createBlock')->with(Popover::class)->willReturn($popoverBlock);
+        $this->layout->expects(self::atLeastOnce())
+            ->method('createBlock')->with(Popover::class)->willReturn($popoverBlock);
 
         $output = $this->plugin->afterSetupAttributeMeta($this->subject, $this->buildResult($fieldMeta));
 
@@ -177,14 +212,17 @@ class ProductEavDataProviderPluginTest extends TestCase
 
     public function testDoesNotSetTooltipDescriptionInDefaultMode(): void
     {
+        $this->configureFixture(
+            registry: $this->createMock(Registry::class)
+        );
         $this->stubProduct(5);
         $this->scopeConfig->method('isSetFlag')->willReturn(false);
 
-        $overrides = $this->createMock(OverrideResultInterface::class);
+        $overrides = $this->createStub(OverrideResultInterface::class);
         $overrides->method('isEmpty')->willReturn(false);
         $this->pool->method('resolve')->willReturn($overrides);
 
-        $popoverBlock = $this->createMock(Popover::class);
+        $popoverBlock = $this->createStub(Popover::class);
         $popoverBlock->method('toHtml')->willReturn('<div data-scopehint-popover="1">POP</div>');
         $popoverBlock->method('setOverrides')->willReturnSelf();
         $this->layout->method('createBlock')->willReturn($popoverBlock);
@@ -198,14 +236,19 @@ class ProductEavDataProviderPluginTest extends TestCase
 
     public function testSetsTooltipDescriptionInLegacyMode(): void
     {
+        $this->configureFixture(
+            scopeConfig: $this->createMock(ScopeConfigInterface::class),
+            registry: $this->createMock(Registry::class)
+        );
         $this->stubProduct(5);
-        $this->scopeConfig->method('isSetFlag')->with('dev/debug/scopehint_legacy_tooltip')->willReturn(true);
+        $this->scopeConfig->expects(self::atLeastOnce())
+            ->method('isSetFlag')->with('dev/debug/scopehint_legacy_tooltip')->willReturn(true);
 
-        $scopeOverride = $this->createMock(ScopeOverrideInterface::class);
+        $scopeOverride = $this->createStub(ScopeOverrideInterface::class);
         $scopeOverride->method('getScopeName')->willReturn('German Store');
         $scopeOverride->method('getDisplayValue')->willReturn('Überschriebener Wert');
 
-        $overrides = $this->createMock(OverrideResultInterface::class);
+        $overrides = $this->createStub(OverrideResultInterface::class);
         $overrides->method('isEmpty')->willReturn(false);
         $overrides->method('getOverrides')->willReturn([$scopeOverride]);
         $this->pool->method('resolve')->willReturn($overrides);
@@ -224,14 +267,17 @@ class ProductEavDataProviderPluginTest extends TestCase
 
     public function testDoesNotSetAdditionalInfoWhenPopoverHtmlIsEmpty(): void
     {
+        $this->configureFixture(
+            registry: $this->createMock(Registry::class)
+        );
         $this->stubProduct(5);
         $this->scopeConfig->method('isSetFlag')->willReturn(false);
 
-        $overrides = $this->createMock(OverrideResultInterface::class);
+        $overrides = $this->createStub(OverrideResultInterface::class);
         $overrides->method('isEmpty')->willReturn(false);
         $this->pool->method('resolve')->willReturn($overrides);
 
-        $popoverBlock = $this->createMock(Popover::class);
+        $popoverBlock = $this->createStub(Popover::class);
         $popoverBlock->method('toHtml')->willReturn('');
         $popoverBlock->method('setOverrides')->willReturnSelf();
         $this->layout->method('createBlock')->willReturn($popoverBlock);
@@ -249,6 +295,10 @@ class ProductEavDataProviderPluginTest extends TestCase
 
     public function testPoolReceivesEditedStoreId(): void
     {
+        $this->configureFixture(
+            pool: $this->createMock(OverrideSourcePool::class),
+            registry: $this->createMock(Registry::class)
+        );
         $this->stubProduct(7, 2);
         $fieldMeta = ['code' => 'name'];
 
@@ -262,10 +312,11 @@ class ProductEavDataProviderPluginTest extends TestCase
 
     private function stubProduct(int $id, int $storeId = 0): void
     {
-        $product = $this->createMock(Product::class);
+        $product = $this->createStub(Product::class);
         $product->method('getId')->willReturn($id);
         $product->method('getStoreId')->willReturn($storeId);
-        $this->registry->method('registry')->with('current_product')->willReturn($product);
+        $this->registry->expects(self::atLeastOnce())
+            ->method('registry')->with('current_product')->willReturn($product);
     }
 
     private function buildResult(array $fieldMeta): array

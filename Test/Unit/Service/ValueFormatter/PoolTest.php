@@ -10,17 +10,18 @@ use AvS\ScopeHint\Service\ValueFormatter\Pool;
 use AvS\ScopeHint\Service\ValueFormatter\ValueFormatterInterface;
 use Magento\Config\Model\Config\Structure\Element\Field;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class PoolTest extends TestCase
 {
     public function testResolveReturnsFirstSupportingFormatter(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
         $field->method('getType')->willReturn('password');
 
-        /** @var ValueFormatterInterface&MockObject $rejectingFormatter */
-        $rejectingFormatter = $this->createMock(ValueFormatterInterface::class);
+        /** @var ValueFormatterInterface&Stub $rejectingFormatter */
+        $rejectingFormatter = $this->createStub(ValueFormatterInterface::class);
         $rejectingFormatter->method('supports')->willReturn(false);
 
         $maskedFormatter = new MaskedFormatter();
@@ -34,11 +35,11 @@ class PoolTest extends TestCase
 
     public function testResolveSkipsNonMatchingFormatters(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
         $field->method('getType')->willReturn('password');
 
-        /** @var ValueFormatterInterface&MockObject $notMatching */
-        $notMatching = $this->createMock(ValueFormatterInterface::class);
+        /** @var ValueFormatterInterface&Stub $notMatching */
+        $notMatching = $this->createStub(ValueFormatterInterface::class);
         $notMatching->method('supports')->willReturn(false);
 
         $maskedFormatter = new MaskedFormatter();
@@ -54,10 +55,10 @@ class PoolTest extends TestCase
     {
         $this->expectException(\LogicException::class);
 
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
 
-        /** @var ValueFormatterInterface&MockObject $notMatching */
-        $notMatching = $this->createMock(ValueFormatterInterface::class);
+        /** @var ValueFormatterInterface&Stub $notMatching */
+        $notMatching = $this->createStub(ValueFormatterInterface::class);
         $notMatching->method('supports')->willReturn(false);
 
         $pool = new Pool([$notMatching]);
@@ -66,11 +67,11 @@ class PoolTest extends TestCase
 
     public function testDefaultFormatterServesAsFallback(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
         $field->method('getType')->willReturn('text');
 
-        /** @var DefaultFormatter&MockObject $defaultFormatter */
-        $defaultFormatter = $this->createMock(DefaultFormatter::class);
+        /** @var DefaultFormatter&Stub $defaultFormatter */
+        $defaultFormatter = $this->createStub(DefaultFormatter::class);
         $defaultFormatter->method('supports')->willReturn(true);
 
         $pool = new Pool([$defaultFormatter]);

@@ -19,17 +19,18 @@ use Magento\Store\Api\Data\StoreInterface;
 use Magento\Store\Api\Data\WebsiteInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class ProductOverrideAggregatorTest extends TestCase
 {
-    /** @var ResourceConnection&MockObject */
+    /** @var ResourceConnection&(MockObject|Stub) */
     private $resource;
 
-    /** @var EavConfig&MockObject */
+    /** @var EavConfig&Stub */
     private $eavConfig;
 
-    /** @var StoreManagerInterface&MockObject */
+    /** @var StoreManagerInterface&Stub */
     private $storeManager;
 
     /** @var ProductOverrideAggregator */
@@ -37,13 +38,19 @@ class ProductOverrideAggregatorTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->resource     = $this->createMock(ResourceConnection::class);
-        $this->eavConfig    = $this->createMock(EavConfig::class);
-        $this->storeManager = $this->createMock(StoreManagerInterface::class);
-        $metadata = $this->createMock(EntityMetadataInterface::class);
+        $this->configureFixture();
+}
+    private function configureFixture(
+        ?ResourceConnection $resource = null
+    ): void
+    {
+        $this->resource = $resource ?? $this->createStub(ResourceConnection::class);
+        $this->eavConfig = $this->createStub(EavConfig::class);
+        $this->storeManager = $this->createStub(StoreManagerInterface::class);
+        $metadata = $this->createStub(EntityMetadataInterface::class);
         $metadata->method('getLinkField')->willReturn('entity_id');
         $metadata->method('getIdentifierField')->willReturn('entity_id');
-        $metadataPool = $this->createMock(MetadataPool::class);
+        $metadataPool = $this->createStub(MetadataPool::class);
         $metadataPool->method('getMetadata')->willReturn($metadata);
 
         $this->aggregator = new ProductOverrideAggregator(
@@ -57,6 +64,9 @@ class ProductOverrideAggregatorTest extends TestCase
 
     public function testEmptyProductIdsReturnsEmptyArray(): void
     {
+        $this->configureFixture(
+            resource: $this->createMock(ResourceConnection::class)
+        );
         $this->resource->expects($this->never())->method('getConnection');
 
         $this->assertSame([], $this->aggregator->getOverrides([], ['name']));
@@ -68,7 +78,7 @@ class ProductOverrideAggregatorTest extends TestCase
         $this->stubAttributes([$this->buildAttribute('name', 42, 'varchar', 'text')]);
         $select = $this->setupConnection([
             ['entity_id' => '1', 'attribute_id' => '42', 'store_id' => '2', 'value' => 'Overridden Name'],
-        ]);
+        ], $this->createMock(Select::class));
 
         $select->expects($this->once())->method('from')
             ->with(['t' => 'catalog_product_entity_varchar'], $this->anything());
@@ -85,7 +95,7 @@ class ProductOverrideAggregatorTest extends TestCase
     {
         $this->stubStores();
         $this->stubAttributes([$this->buildAttribute('name', 42, 'varchar', 'text')]);
-        $select = $this->setupConnection([]);
+        $select = $this->setupConnection([], $this->createMock(Select::class));
 
         $select->expects($this->once())->method('joinLeft')
             ->with(['admin' => 'catalog_product_entity_varchar'], $this->anything(), []);
@@ -105,6 +115,9 @@ class ProductOverrideAggregatorTest extends TestCase
 
     public function testSkipsQueryWhenNoRequestedCodeIsAScopedAttribute(): void
     {
+        $this->configureFixture(
+            resource: $this->createMock(ResourceConnection::class)
+        );
         $this->stubAttributes([
             $this->buildAttribute('image', 10, 'varchar', 'image'),
             $this->buildAttribute('sku', 5, 'static', 'text', ScopedAttributeInterface::SCOPE_GLOBAL),
@@ -149,6 +162,9 @@ class ProductOverrideAggregatorTest extends TestCase
 
     public function testCacheHitOnSecondCallWithSameIdsAndCodes(): void
     {
+        $this->configureFixture(
+            resource: $this->createMock(ResourceConnection::class)
+        );
         $this->stubStores();
         $this->stubAttributes([$this->buildAttribute('name', 42, 'varchar', 'text')]);
         $this->setupConnection([]);
@@ -165,15 +181,14 @@ class ProductOverrideAggregatorTest extends TestCase
 
     /**
      * @param array<int, array<string, string>> $rows
-     * @return Select&MockObject
+     * @return Select&(MockObject|Stub)
      */
-    private function setupConnection(array $rows): Select
+    private function setupConnection(array $rows, ?Select $select = null): Select
     {
-        $connection = $this->createMock(AdapterInterface::class);
+        $connection = $this->createStub(AdapterInterface::class);
         $this->resource->method('getConnection')->willReturn($connection);
         $this->resource->method('getTableName')->willReturnArgument(0);
-
-        $select = $this->createMock(Select::class);
+        $select = $select ?? $this->createStub(Select::class);
         $select->method('from')->willReturnSelf();
         $select->method('joinInner')->willReturnSelf();
         $select->method('joinLeft')->willReturnSelf();
@@ -186,7 +201,7 @@ class ProductOverrideAggregatorTest extends TestCase
 
     private function stubStores(): void
     {
-        $website = $this->createMock(WebsiteInterface::class);
+        $website = $this->createStub(WebsiteInterface::class);
         $website->method('getCode')->willReturn('website_base');
         $this->storeManager->method('getStores')->willReturn([
             $this->buildStore(2, 'store_en', 'English Store', 'website_base'),
@@ -203,7 +218,7 @@ class ProductOverrideAggregatorTest extends TestCase
         foreach ($attributes as $attribute) {
             $attributesByCode[$attribute->getAttributeCode()] = $attribute;
         }
-        $unknownAttribute = $this->createMock(CatalogAttribute::class);
+        $unknownAttribute = $this->createStub(CatalogAttribute::class);
         $unknownAttribute->method('getAttributeId')->willReturn(null);
 
         $this->eavConfig->method('getAttribute')->willReturnCallback(
@@ -218,7 +233,7 @@ class ProductOverrideAggregatorTest extends TestCase
      */
     private function buildSource(array $labelsByValue): AbstractSource
     {
-        $source = $this->createMock(AbstractSource::class);
+        $source = $this->createStub(AbstractSource::class);
         $source->method('getOptionText')->willReturnCallback(
             static function ($value) use ($labelsByValue) {
                 return $labelsByValue[$value] ?? false;
@@ -230,7 +245,7 @@ class ProductOverrideAggregatorTest extends TestCase
 
     private function buildStore(int $id, string $code, string $name, string $websiteCode): StoreInterface
     {
-        $store = $this->createMock(StoreInterface::class);
+        $store = $this->createStub(StoreInterface::class);
         $store->method('getId')->willReturn((string) $id);
         $store->method('getCode')->willReturn($code);
         $store->method('getName')->willReturn($name);
@@ -246,7 +261,7 @@ class ProductOverrideAggregatorTest extends TestCase
         string $frontendInput,
         int $scope = ScopedAttributeInterface::SCOPE_STORE
     ): CatalogAttribute {
-        $attribute = $this->createMock(CatalogAttribute::class);
+        $attribute = $this->createStub(CatalogAttribute::class);
         $attribute->method('getAttributeId')->willReturn((string) $attributeId);
         $attribute->method('getAttributeCode')->willReturn($code);
         $attribute->method('getBackendType')->willReturn($backendType);

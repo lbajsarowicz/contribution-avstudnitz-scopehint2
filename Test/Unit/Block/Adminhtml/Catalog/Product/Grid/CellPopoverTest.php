@@ -7,11 +7,12 @@ namespace AvS\ScopeHint\Test\Unit\Block\Adminhtml\Catalog\Product\Grid;
 use AvS\ScopeHint\Block\Adminhtml\Catalog\Product\Grid\CellPopover;
 use Magento\Framework\Escaper;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class CellPopoverTest extends TestCase
 {
-    /** @var Escaper&MockObject */
+    /** @var Escaper&(MockObject|Stub) */
     private $escaper;
 
     /** @var CellPopover */
@@ -19,7 +20,13 @@ class CellPopoverTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->escaper = $this->createMock(Escaper::class);
+        $this->configureFixture();
+}
+    private function configureFixture(
+        ?Escaper $escaper = null
+    ): void
+    {
+        $this->escaper = $escaper ?? $this->createStub(Escaper::class);
         // Identity escaping — return value unchanged so assertions can use plain strings.
         $this->escaper->method('escapeHtml')->willReturnArgument(0);
         $this->escaper->method('escapeHtmlAttr')->willReturnArgument(0);
@@ -107,6 +114,9 @@ class CellPopoverTest extends TestCase
 
     public function testRenderCallsEscapeHtmlOnStoreName(): void
     {
+        $this->configureFixture(
+            escaper: $this->createMock(Escaper::class)
+        );
         $overrides = [
             2 => [
                 'displayValue' => 'Val',
