@@ -14,15 +14,16 @@ use Magento\Framework\Module\Manager as ModuleManager;
 use Magento\Framework\View\Element\BlockFactory;
 use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class OptionLabelResolverTest extends TestCase
 {
-    /** @var SourceFactory&MockObject */
+    /** @var SourceFactory&(MockObject|Stub) */
     private $sourceFactory;
 
-    /** @var LoggerInterface&MockObject */
+    /** @var LoggerInterface&(MockObject|Stub) */
     private $logger;
 
     /** @var OptionLabelResolver */
@@ -30,8 +31,15 @@ class OptionLabelResolverTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->sourceFactory = $this->createMock(SourceFactory::class);
-        $this->logger = $this->createMock(LoggerInterface::class);
+        $this->configureFixture();
+}
+    private function configureFixture(
+        ?SourceFactory $sourceFactory = null,
+        ?LoggerInterface $logger = null
+    ): void
+    {
+        $this->sourceFactory = $sourceFactory ?? $this->createStub(SourceFactory::class);
+        $this->logger = $logger ?? $this->createStub(LoggerInterface::class);
         $this->resolver = new OptionLabelResolver($this->logger);
     }
 
@@ -74,6 +82,9 @@ class OptionLabelResolverTest extends TestCase
 
     public function testResolvesLabelFromSourceModel(): void
     {
+        $this->configureFixture(
+            sourceFactory: $this->createMock(SourceFactory::class)
+        );
         $this->sourceFactory
             ->expects(self::once())
             ->method('create')
@@ -107,6 +118,9 @@ class OptionLabelResolverTest extends TestCase
 
     public function testReturnsRawValueAndLogsWhenSourceModelThrows(): void
     {
+        $this->configureFixture(
+            logger: $this->createMock(LoggerInterface::class)
+        );
         $this->sourceFactory->method('create')->willThrowException(new \RuntimeException('Class not found'));
         $this->logger->expects(self::once())->method('debug');
 
@@ -117,6 +131,9 @@ class OptionLabelResolverTest extends TestCase
 
     public function testOptionsAreResolvedOncePerFieldPath(): void
     {
+        $this->configureFixture(
+            sourceFactory: $this->createMock(SourceFactory::class)
+        );
         $this->sourceFactory
             ->expects(self::once())
             ->method('create')
@@ -153,13 +170,13 @@ class OptionLabelResolverTest extends TestCase
     private function createField(array $data): Field
     {
         $field = new Field(
-            $this->createMock(StoreManagerInterface::class),
-            $this->createMock(ModuleManager::class),
-            $this->createMock(BackendFactory::class),
+            $this->createStub(StoreManagerInterface::class),
+            $this->createStub(ModuleManager::class),
+            $this->createStub(BackendFactory::class),
             $this->sourceFactory,
-            $this->createMock(CommentFactory::class),
-            $this->createMock(BlockFactory::class),
-            $this->createMock(Mapper::class)
+            $this->createStub(CommentFactory::class),
+            $this->createStub(BlockFactory::class),
+            $this->createStub(Mapper::class)
         );
         $field->setData($data + ['path' => 'section/group'], 'default');
 

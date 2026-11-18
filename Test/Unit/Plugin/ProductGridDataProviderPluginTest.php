@@ -10,20 +10,21 @@ use AvS\ScopeHint\Service\ProductOverrideAggregator;
 use Magento\Catalog\Ui\DataProvider\Product\ProductDataProvider;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class ProductGridDataProviderPluginTest extends TestCase
 {
-    /** @var ProductOverrideAggregator&MockObject */
+    /** @var ProductOverrideAggregator&(MockObject|Stub) */
     private $aggregator;
 
-    /** @var CellPopover&MockObject */
+    /** @var CellPopover&(MockObject|Stub) */
     private $cellPopover;
 
-    /** @var ScopeConfigInterface&MockObject */
+    /** @var ScopeConfigInterface&Stub */
     private $scopeConfig;
 
-    /** @var ProductDataProvider&MockObject */
+    /** @var ProductDataProvider&Stub */
     private $subject;
 
     /** @var ProductGridDataProviderPlugin */
@@ -31,12 +32,17 @@ class ProductGridDataProviderPluginTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->aggregator  = $this->createMock(ProductOverrideAggregator::class);
-        $this->cellPopover = $this->createMock(CellPopover::class);
-        $this->scopeConfig = $this->createMock(ScopeConfigInterface::class);
-        $this->subject     = $this->getMockBuilder(ProductDataProvider::class)
-            ->disableOriginalConstructor()
-            ->getMock();
+        $this->configureFixture();
+}
+    private function configureFixture(
+        ?ProductOverrideAggregator $aggregator = null,
+        ?CellPopover $cellPopover = null
+    ): void
+    {
+        $this->aggregator = $aggregator ?? $this->createStub(ProductOverrideAggregator::class);
+        $this->cellPopover = $cellPopover ?? $this->createStub(CellPopover::class);
+        $this->scopeConfig = $this->createStub(ScopeConfigInterface::class);
+        $this->subject = $this->createStub(ProductDataProvider::class);
 
         $this->plugin = new ProductGridDataProviderPlugin(
             $this->aggregator,
@@ -51,6 +57,9 @@ class ProductGridDataProviderPluginTest extends TestCase
 
     public function testAfterGetDataReturnsUnchangedWhenLegacyFlagIsSet(): void
     {
+        $this->configureFixture(
+            aggregator: $this->createMock(ProductOverrideAggregator::class)
+        );
         $this->scopeConfig->method('isSetFlag')->willReturn(true);
         $this->aggregator->expects($this->never())->method('getOverrides');
 
@@ -63,6 +72,9 @@ class ProductGridDataProviderPluginTest extends TestCase
 
     public function testAfterGetDataReturnsUnchangedWhenItemsEmpty(): void
     {
+        $this->configureFixture(
+            aggregator: $this->createMock(ProductOverrideAggregator::class)
+        );
         $this->scopeConfig->method('isSetFlag')->willReturn(false);
         $this->aggregator->expects($this->never())->method('getOverrides');
 
@@ -75,9 +87,12 @@ class ProductGridDataProviderPluginTest extends TestCase
 
     public function testAfterGetDataEnrichesItemWhenOverrideExists(): void
     {
+        $this->configureFixture(
+            aggregator: $this->createMock(ProductOverrideAggregator::class)
+        );
         $this->scopeConfig->method('isSetFlag')->willReturn(false);
-
-        $this->aggregator->method('getOverrides')
+        $this->aggregator->expects(self::atLeastOnce())
+            ->method('getOverrides')
             ->with([1], ['entity_id', 'name'])
             ->willReturn([
                 1 => [
@@ -112,10 +127,13 @@ class ProductGridDataProviderPluginTest extends TestCase
 
     public function testAfterGetDataRendersRegisteredGridFieldMissingFromItem(): void
     {
+        $this->configureFixture(
+            aggregator: $this->createMock(ProductOverrideAggregator::class)
+        );
         $this->scopeConfig->method('isSetFlag')->willReturn(false);
         $this->plugin->beforeAddField($this->subject, 'scopehint_note');
-
-        $this->aggregator->method('getOverrides')
+        $this->aggregator->expects(self::atLeastOnce())
+            ->method('getOverrides')
             ->with([1], ['scopehint_note', 'entity_id', 'name'])
             ->willReturn([
                 1 => [
@@ -142,6 +160,9 @@ class ProductGridDataProviderPluginTest extends TestCase
 
     public function testAfterGetDataSkipsColumnNotPresentInItem(): void
     {
+        $this->configureFixture(
+            cellPopover: $this->createMock(CellPopover::class)
+        );
         $this->scopeConfig->method('isSetFlag')->willReturn(false);
 
         $this->aggregator->method('getOverrides')

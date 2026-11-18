@@ -20,28 +20,29 @@ use Magento\Store\Api\Data\WebsiteInterface;
 use Magento\Store\Api\StoreRepositoryInterface;
 use Magento\Store\Api\WebsiteRepositoryInterface;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class ScopeOverrideDetectorGapTest extends TestCase
 {
     private const PATH = 'carriers/custom/rows';
 
-    /** @var ScopeConfigInterface&MockObject */
+    /** @var ScopeConfigInterface&Stub */
     private $scopeConfig;
 
-    /** @var WebsiteRepositoryInterface&MockObject */
+    /** @var WebsiteRepositoryInterface&(MockObject|Stub) */
     private $websiteRepository;
 
-    /** @var StoreRepositoryInterface&MockObject */
+    /** @var StoreRepositoryInterface&Stub */
     private $storeRepository;
 
-    /** @var RequestInterface&MockObject */
+    /** @var RequestInterface&Stub */
     private $request;
 
-    /** @var Pool&MockObject */
+    /** @var Pool&(MockObject|Stub) */
     private $pool;
 
-    /** @var Field&MockObject */
+    /** @var Field&Stub */
     private $field;
 
     /** @var array<int, DataObject> */
@@ -49,12 +50,19 @@ class ScopeOverrideDetectorGapTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->scopeConfig = $this->createMock(ScopeConfigInterface::class);
-        $this->websiteRepository = $this->createMock(WebsiteRepositoryInterface::class);
-        $this->storeRepository = $this->createMock(StoreRepositoryInterface::class);
-        $this->request = $this->createMock(RequestInterface::class);
-        $this->pool = $this->createMock(Pool::class);
-        $this->field = $this->createMock(Field::class);
+        $this->configureFixture();
+}
+    private function configureFixture(
+        ?WebsiteRepositoryInterface $websiteRepository = null,
+        ?Pool $pool = null
+    ): void
+    {
+        $this->scopeConfig = $this->createStub(ScopeConfigInterface::class);
+        $this->websiteRepository = $websiteRepository ?? $this->createStub(WebsiteRepositoryInterface::class);
+        $this->storeRepository = $this->createStub(StoreRepositoryInterface::class);
+        $this->request = $this->createStub(RequestInterface::class);
+        $this->pool = $pool ?? $this->createStub(Pool::class);
+        $this->field = $this->createStub(Field::class);
     }
 
     public function testWebsiteOverrideGivesParentAwareFormatterTheDefaultValue(): void
@@ -107,11 +115,16 @@ class ScopeOverrideDetectorGapTest extends TestCase
 
     public function testStoreOverrideAtWebsiteScopeGivesParentAwareFormatterTheCurrentWebsiteValue(): void
     {
+        $this->configureFixture(
+            websiteRepository: $this->createMock(WebsiteRepositoryInterface::class)
+        );
         $this->stubExplicitValue('stores', 5, 'store-value');
         $this->stubRequestParams('main', null);
         $website = $this->createWebsite(2, 'main');
-        $this->websiteRepository->method('get')->with('main')->willReturn($website);
-        $this->websiteRepository->method('getById')->with(2)->willReturn($website);
+        $this->websiteRepository->expects(self::atLeastOnce())
+            ->method('get')->with('main')->willReturn($website);
+        $this->websiteRepository->expects(self::atLeastOnce())
+            ->method('getById')->with(2)->willReturn($website);
         $this->storeRepository->method('getList')->willReturn([$this->createStore(5, 'us', 2)]);
         $this->scopeConfig->method('getValue')->willReturnMap([
             [self::PATH, 'website', 2, 'current-website-value'],
@@ -151,6 +164,9 @@ class ScopeOverrideDetectorGapTest extends TestCase
 
     public function testParentAwareFormatterIsNotUsedWithoutFieldContext(): void
     {
+        $this->configureFixture(
+            pool: $this->createMock(Pool::class)
+        );
         $this->stubExplicitValue('websites', 2, 'website-value');
         $this->stubRequestParams(null, null);
         $this->stubWebsites([$this->createWebsite(2, 'main')]);
@@ -165,18 +181,17 @@ class ScopeOverrideDetectorGapTest extends TestCase
 
     private function createDetector(): ScopeOverrideDetector
     {
-        $escaper = $this->createMock(Escaper::class);
+        $escaper = $this->createStub(Escaper::class);
         $escaper->method('escapeHtml')->willReturnCallback(
             static function ($value) {
                 return htmlspecialchars((string) $value, ENT_QUOTES);
-            }
-        );
-        $collection = $this->createMock(Collection::class);
+        });
+        $collection = $this->createStub(Collection::class);
         $collection->method('addFieldToFilter')->willReturnSelf();
         $collection->method('getIterator')->willReturnCallback(function () {
             return new \ArrayIterator($this->configRecords);
         });
-        $collectionFactory = $this->createMock(CollectionFactory::class);
+        $collectionFactory = $this->createStub(CollectionFactory::class);
         $collectionFactory->method('create')->willReturn($collection);
 
         return new ScopeOverrideDetector(
@@ -222,7 +237,7 @@ class ScopeOverrideDetectorGapTest extends TestCase
 
     private function createWebsite(int $id, string $code): WebsiteInterface
     {
-        $website = $this->createMock(WebsiteInterface::class);
+        $website = $this->createStub(WebsiteInterface::class);
         $website->method('getId')->willReturn($id);
         $website->method('getCode')->willReturn($code);
         $website->method('getName')->willReturn($code);
@@ -232,7 +247,7 @@ class ScopeOverrideDetectorGapTest extends TestCase
 
     private function createStore(int $id, string $code, int $websiteId): StoreInterface
     {
-        $store = $this->createMock(StoreInterface::class);
+        $store = $this->createStub(StoreInterface::class);
         $store->method('getId')->willReturn($id);
         $store->method('getCode')->willReturn($code);
         $store->method('getName')->willReturn($code);

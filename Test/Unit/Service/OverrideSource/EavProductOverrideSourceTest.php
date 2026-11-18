@@ -19,24 +19,25 @@ use Magento\Store\Api\Data\StoreInterface;
 use Magento\Store\Api\Data\WebsiteInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class EavProductOverrideSourceTest extends TestCase
 {
-    /** @var ProductRepositoryInterface&MockObject */
+    /** @var ProductRepositoryInterface&Stub */
     private $productRepository;
 
-    /** @var StoreManagerInterface&MockObject */
+    /** @var StoreManagerInterface&(MockObject|Stub) */
     private $storeManager;
 
-    /** @var ScopeConfigInterface&MockObject */
+    /** @var ScopeConfigInterface&(MockObject|Stub) */
     private $scopeConfig;
 
-    /** @var Escaper&MockObject */
+    /** @var Escaper&Stub */
     private $escaper;
 
-    /** @var LoggerInterface&MockObject */
+    /** @var LoggerInterface&(MockObject|Stub) */
     private $logger;
 
     /** @var EavProductOverrideSource */
@@ -44,19 +45,26 @@ class EavProductOverrideSourceTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->productRepository = $this->createMock(ProductRepositoryInterface::class);
-        $this->storeManager      = $this->createMock(StoreManagerInterface::class);
-        $this->scopeConfig       = $this->createMock(ScopeConfigInterface::class);
-        $this->escaper           = $this->createMock(Escaper::class);
-        $this->logger            = $this->createMock(LoggerInterface::class);
+        $this->configureFixture();
+}
+    private function configureFixture(
+        ?StoreManagerInterface $storeManager = null,
+        ?LoggerInterface $logger = null
+    ): void
+    {
+        $this->productRepository = $this->createStub(ProductRepositoryInterface::class);
+        $this->storeManager = $storeManager ?? $this->createStub(StoreManagerInterface::class);
+        $this->scopeConfig = $this->createStub(ScopeConfigInterface::class);
+        $this->escaper = $this->createStub(Escaper::class);
+        $this->logger = $logger ?? $this->createStub(LoggerInterface::class);
 
         $this->escaper->method('escapeHtml')->willReturnArgument(0);
 
         // Default: max_stores not exceeded
-        $this->scopeConfig
-            ->method('getValue')
-            ->with(EavProductOverrideSource::XML_PATH_MAX_STORES)
-            ->willReturn(50);
+        $this->scopeConfig->method('getValue')->willReturnCallback(static function ($path) {
+            self::assertSame(EavProductOverrideSource::XML_PATH_MAX_STORES, $path);
+            return 50;
+        });
 
         $this->source = new EavProductOverrideSource(
             $this->productRepository,
@@ -143,11 +151,15 @@ class EavProductOverrideSourceTest extends TestCase
 
     public function testGetOverridesDetectsStoreOverride(): void
     {
+        $this->configureFixture(
+            storeManager: $this->createMock(StoreManagerInterface::class)
+        );
         $store = $this->createStore(2, 'de', 'German Store', 1);
         $this->storeManager->method('getStores')->willReturn([$store]);
 
         $website = $this->createWebsite(1, 'base');
-        $this->storeManager->method('getWebsite')->with(1)->willReturn($website);
+        $this->storeManager->expects(self::atLeastOnce())
+            ->method('getWebsite')->with(1)->willReturn($website);
 
         $defaultProduct = $this->createProduct(5, 'name', 'Original Name');
         $storeProduct   = $this->createProduct(5, 'name', 'Überschriebener Name');
@@ -202,12 +214,14 @@ class EavProductOverrideSourceTest extends TestCase
         $this->storeManager->method('getWebsite')->willReturn($this->createWebsite(1, 'base'));
 
         $source = $this->createMock(AbstractSource::class);
-        $source->method('getOptionText')->with('4,5')->willReturn(['Cotton', 'Wool']);
-        $attribute = $this->createMock(CatalogAttribute::class);
+        $source->expects(self::atLeastOnce())
+            ->method('getOptionText')->with('4,5')->willReturn(['Cotton', 'Wool']);
+        $attribute = $this->createStub(CatalogAttribute::class);
         $attribute->method('usesSource')->willReturn(true);
         $attribute->method('getSource')->willReturn($source);
         $productResource = $this->createMock(ProductResource::class);
-        $productResource->method('getAttribute')->with('material')->willReturn($attribute);
+        $productResource->expects(self::atLeastOnce())
+            ->method('getAttribute')->with('material')->willReturn($attribute);
 
         $defaultProduct = $this->createProduct(5, 'material', '4');
         $storeProduct = $this->createProduct(5, 'material', '4,5', $productResource);
@@ -238,6 +252,9 @@ class EavProductOverrideSourceTest extends TestCase
 
     public function testGetOverridesLogsWarningAndReturnsEmptyWhenStoreCountExceedsMax(): void
     {
+        $this->configureFixture(
+            logger: $this->createMock(LoggerInterface::class)
+        );
         $stores = [
             $this->createStore(1, 's1', 'Store 1', 1),
             $this->createStore(2, 's2', 'Store 2', 1),
@@ -246,7 +263,8 @@ class EavProductOverrideSourceTest extends TestCase
         $this->storeManager->method('getStores')->willReturn($stores);
 
         $scopeConfig = $this->createMock(ScopeConfigInterface::class);
-        $scopeConfig->method('getValue')
+        $scopeConfig->expects(self::atLeastOnce())
+            ->method('getValue')
             ->with(EavProductOverrideSource::XML_PATH_MAX_STORES)
             ->willReturn(2);
 
@@ -279,11 +297,12 @@ class EavProductOverrideSourceTest extends TestCase
         $value,
         ?ProductResource $productResource = null
     ): ProductInterface {
-        $product = $this->createMock(ProductWithDataInterface::class);
+        $product = $this->createStub(ProductWithDataInterface::class);
         $product->method('getId')->willReturn($id);
-        $product->method('getData')
-            ->with($attributeCode)
-            ->willReturn($value);
+        $product->method('getData')->willReturnCallback(static function ($key) use ($attributeCode, $value) {
+            self::assertSame($attributeCode, $key);
+            return $value;
+        });
 
         $product->method('getResource')->willReturn($productResource);
 
@@ -292,7 +311,7 @@ class EavProductOverrideSourceTest extends TestCase
 
     private function createStore(int $id, string $code, string $name, int $websiteId): StoreInterface
     {
-        $store = $this->createMock(StoreInterface::class);
+        $store = $this->createStub(StoreInterface::class);
         $store->method('getId')->willReturn($id);
         $store->method('getCode')->willReturn($code);
         $store->method('getName')->willReturn($name);
@@ -303,7 +322,7 @@ class EavProductOverrideSourceTest extends TestCase
 
     private function createWebsite(int $id, string $code): WebsiteInterface
     {
-        $website = $this->createMock(WebsiteInterface::class);
+        $website = $this->createStub(WebsiteInterface::class);
         $website->method('getId')->willReturn($id);
         $website->method('getCode')->willReturn($code);
 

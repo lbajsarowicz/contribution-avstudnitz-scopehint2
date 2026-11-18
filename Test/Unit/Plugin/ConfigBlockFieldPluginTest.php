@@ -16,7 +16,6 @@ use Magento\Config\Model\Config\Structure;
 use Magento\Config\Model\Config\Structure\Element\Field as StructureField;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Data\Form\Element\AbstractElement;
-use Magento\Framework\Data\Form\Element\Text;
 use Magento\Framework\View\LayoutInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -29,27 +28,27 @@ class ConfigBlockFieldPluginTest extends TestCase
 
     protected function setUp(): void
     {
-        $detector = $this->createMock(ScopeOverrideDetectorInterface::class);
+        $detector = $this->createStub(ScopeOverrideDetectorInterface::class);
         $detector->method('getOverrides')->willReturn(new OverrideResult([
             new ScopeOverride(ScopeOverrideInterface::SCOPE_TYPE_WEBSITES, 'base', 'Main', 1, 'base', 'x', 'x'),
         ]));
 
-        $popover = $this->createMock(Popover::class);
+        $popover = $this->createStub(Popover::class);
         $popover->method('setOverrides')->willReturnSelf();
         $popover->method('setFieldHtmlId')->willReturnSelf();
         $popover->method('toHtml')->willReturn(self::POPOVER_HTML);
-        $layout = $this->createMock(LayoutInterface::class);
+        $layout = $this->createStub(LayoutInterface::class);
         $layout->method('createBlock')->willReturn($popover);
 
-        $field = $this->createMock(StructureField::class);
+        $field = $this->createStub(StructureField::class);
         $field->method('getPath')->willReturn('section/group/field');
-        $structure = $this->createMock(Structure::class);
+        $structure = $this->createStub(Structure::class);
         $structure->method('getElement')->willReturn($field);
 
         $this->plugin = new ConfigBlockFieldPlugin(
             $detector,
             $layout,
-            $this->createMock(ScopeConfigInterface::class),
+            $this->createStub(ScopeConfigInterface::class),
             $structure
         );
     }
@@ -57,7 +56,7 @@ class ConfigBlockFieldPluginTest extends TestCase
     public function testRegularFieldGetsPopoverAfterElement(): void
     {
         $element = $this->createElement();
-        $subject = $this->createMock(FieldBlock::class);
+        $subject = $this->createStub(FieldBlock::class);
 
         $this->plugin->beforeRender($subject, $element);
 
@@ -71,7 +70,7 @@ class ConfigBlockFieldPluginTest extends TestCase
     public function testFieldArrayGetsPopoverAtStartOfValueCell(): void
     {
         $element = $this->createElement();
-        $subject = $this->createMock(AbstractFieldArray::class);
+        $subject = $this->createStub(AbstractFieldArray::class);
 
         $this->plugin->beforeRender($subject, $element);
         $rendered = $this->plugin->afterRender(
@@ -91,11 +90,12 @@ class ConfigBlockFieldPluginTest extends TestCase
 
     public function testDetectsOverridesOnTheStructureFieldConfigPath(): void
     {
-        $field = $this->createMock(StructureField::class);
+        $field = $this->createStub(StructureField::class);
         $field->method('getPath')->willReturn('payment_us/free/title');
         $field->method('getConfigPath')->willReturn('payment/free/title');
         $structure = $this->createMock(Structure::class);
-        $structure->method('getElement')->with('payment_us/free/title')->willReturn($field);
+        $structure->expects(self::atLeastOnce())
+            ->method('getElement')->with('payment_us/free/title')->willReturn($field);
 
         $detector = $this->createMock(ScopeOverrideDetectorInterface::class);
         $detector->expects(self::once())
@@ -105,23 +105,19 @@ class ConfigBlockFieldPluginTest extends TestCase
 
         $plugin = new ConfigBlockFieldPlugin(
             $detector,
-            $this->createMock(LayoutInterface::class),
-            $this->createMock(ScopeConfigInterface::class),
+            $this->createStub(LayoutInterface::class),
+            $this->createStub(ScopeConfigInterface::class),
             $structure
         );
         $element = $this->createElement();
         $element->setData('field_config', ['path' => 'payment_us/free', 'id' => 'title']);
 
-        $plugin->beforeRender($this->createMock(FieldBlock::class), $element);
+        $plugin->beforeRender($this->createStub(FieldBlock::class), $element);
     }
 
     private function createElement(): AbstractElement
     {
-        $element = $this->getMockBuilder(Text::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['getHtmlId'])
-            ->getMock();
-        $element->method('getHtmlId')->willReturn('section_group_field');
+        $element = new TextElement('section_group_field');
         $element->setData('field_config', ['path' => 'section/group', 'id' => 'field']);
 
         return $element;

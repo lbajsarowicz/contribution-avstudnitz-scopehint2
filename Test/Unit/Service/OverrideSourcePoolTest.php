@@ -8,14 +8,15 @@ use AvS\ScopeHint\Api\Data\OverrideResultInterface;
 use AvS\ScopeHint\Api\OverrideSourceInterface;
 use AvS\ScopeHint\Service\OverrideSourcePool;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class OverrideSourcePoolTest extends TestCase
 {
     private function makeSource(bool $supports, ?OverrideResultInterface $result = null): OverrideSourceInterface
     {
-        /** @var OverrideSourceInterface&MockObject $source */
-        $source = $this->createMock(OverrideSourceInterface::class);
+        /** @var OverrideSourceInterface&Stub $source */
+        $source = $this->createStub(OverrideSourceInterface::class);
         $source->method('supports')->willReturn($supports);
 
         if ($result !== null) {
@@ -48,11 +49,11 @@ class OverrideSourcePoolTest extends TestCase
 
     public function testFirstSupportingSourceWins(): void
     {
-        $expected = $this->createMock(OverrideResultInterface::class);
+        $expected = $this->createStub(OverrideResultInterface::class);
 
         $first  = $this->makeSource(false);
         $second = $this->makeSource(true, $expected);
-        $third  = $this->makeSource(true);
+        $third  = $this->createMock(OverrideSourceInterface::class);
 
         // Third source supports() should never be called because second wins.
         $third->expects(self::never())->method('getOverrides');
@@ -87,7 +88,7 @@ class OverrideSourcePoolTest extends TestCase
         $entityType = 'category';
         $entityId   = 99;
 
-        $expected = $this->createMock(OverrideResultInterface::class);
+        $expected = $this->createStub(OverrideResultInterface::class);
 
         /** @var OverrideSourceInterface&MockObject $source */
         $source = $this->createMock(OverrideSourceInterface::class);
@@ -105,10 +106,10 @@ class OverrideSourcePoolTest extends TestCase
 
     public function testSubsequentSourcesDoNotFireAfterFirstMatch(): void
     {
-        $expected = $this->createMock(OverrideResultInterface::class);
+        $expected = $this->createStub(OverrideResultInterface::class);
 
-        /** @var OverrideSourceInterface&MockObject $first */
-        $first = $this->createMock(OverrideSourceInterface::class);
+        /** @var OverrideSourceInterface&Stub $first */
+        $first = $this->createStub(OverrideSourceInterface::class);
         $first->method('supports')->willReturn(true);
         $first->method('getOverrides')->willReturn($expected);
 

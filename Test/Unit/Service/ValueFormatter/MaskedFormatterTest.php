@@ -20,7 +20,7 @@ class MaskedFormatterTest extends TestCase
 
     public function testSupportsPasswordType(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
         $field->method('getType')->willReturn('password');
 
         self::assertTrue($this->formatter->supports($field));
@@ -28,7 +28,7 @@ class MaskedFormatterTest extends TestCase
 
     public function testSupportsObscureType(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
         $field->method('getType')->willReturn('obscure');
 
         self::assertTrue($this->formatter->supports($field));
@@ -36,7 +36,7 @@ class MaskedFormatterTest extends TestCase
 
     public function testDoesNotSupportOtherTypes(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
         $field->method('getType')->willReturn('text');
 
         self::assertFalse($this->formatter->supports($field));
@@ -44,7 +44,7 @@ class MaskedFormatterTest extends TestCase
 
     public function testFormatNonEmptyValueReturnsBullets(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
 
         $result = $this->formatter->format('secret', $field);
 
@@ -53,7 +53,7 @@ class MaskedFormatterTest extends TestCase
 
     public function testFormatEmptyValueReturnsEmptyString(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
 
         self::assertSame('', $this->formatter->format('', $field));
         self::assertSame('', $this->formatter->format(null, $field));
@@ -61,7 +61,7 @@ class MaskedFormatterTest extends TestCase
 
     public function testFormatDoesNotLeakValueLength(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
 
         $short = $this->formatter->format('x', $field);
         $long = $this->formatter->format('averylongpassword', $field);

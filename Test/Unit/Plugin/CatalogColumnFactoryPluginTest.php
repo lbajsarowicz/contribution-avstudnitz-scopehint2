@@ -11,6 +11,7 @@ use Magento\Eav\Model\Entity\Attribute\AbstractAttribute;
 use Magento\Eav\Model\Entity\Attribute\ScopedAttributeInterface;
 use Magento\Framework\DataObject;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class CatalogColumnFactoryPluginTest extends TestCase
@@ -18,13 +19,13 @@ class CatalogColumnFactoryPluginTest extends TestCase
     /** @var CatalogColumnFactoryPlugin */
     private $plugin;
 
-    /** @var ColumnFactory&MockObject */
+    /** @var ColumnFactory&Stub */
     private $subject;
 
     protected function setUp(): void
     {
         $this->plugin  = new CatalogColumnFactoryPlugin();
-        $this->subject = $this->createMock(ColumnFactory::class);
+        $this->subject = $this->createStub(ColumnFactory::class);
     }
 
     public function testStoreScoped_textAttribute_setsBodyTmpl(): void
@@ -113,11 +114,11 @@ class CatalogColumnFactoryPluginTest extends TestCase
     /**
      * @param int $scope
      * @param string $frontendInput
-     * @return CatalogAttribute&MockObject
+     * @return CatalogAttribute&Stub
      */
     private function buildAttribute(int $scope, string $frontendInput): CatalogAttribute
     {
-        $attribute = $this->createMock(CatalogAttribute::class);
+        $attribute = $this->createStub(CatalogAttribute::class);
         $attribute->method('getIsGlobal')->willReturn((string) $scope);
         $attribute->method('getFrontendInput')->willReturn($frontendInput);
 

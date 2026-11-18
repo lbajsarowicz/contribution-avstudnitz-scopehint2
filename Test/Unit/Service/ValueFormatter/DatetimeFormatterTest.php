@@ -9,14 +9,15 @@ use Magento\Config\Model\Config\Structure\Element\Field;
 use Magento\Framework\Escaper;
 use Magento\Framework\Stdlib\DateTime\TimezoneInterface;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 class DatetimeFormatterTest extends TestCase
 {
-    /** @var TimezoneInterface&MockObject */
+    /** @var TimezoneInterface&(MockObject|Stub) */
     private $timezone;
 
-    /** @var Escaper&MockObject */
+    /** @var Escaper&Stub */
     private $escaper;
 
     /** @var DatetimeFormatter */
@@ -24,8 +25,14 @@ class DatetimeFormatterTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->timezone = $this->createMock(TimezoneInterface::class);
-        $this->escaper = $this->createMock(Escaper::class);
+        $this->configureFixture();
+}
+    private function configureFixture(
+        ?TimezoneInterface $timezone = null
+    ): void
+    {
+        $this->timezone = $timezone ?? $this->createStub(TimezoneInterface::class);
+        $this->escaper = $this->createStub(Escaper::class);
         $this->escaper->method('escapeHtml')->willReturnArgument(0);
 
         $this->formatter = new DatetimeFormatter($this->timezone, $this->escaper);
@@ -33,7 +40,7 @@ class DatetimeFormatterTest extends TestCase
 
     public function testSupportsDatetimeType(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
         $field->method('getType')->willReturn('datetime');
 
         self::assertTrue($this->formatter->supports($field));
@@ -41,7 +48,7 @@ class DatetimeFormatterTest extends TestCase
 
     public function testSupportsDateType(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
         $field->method('getType')->willReturn('date');
 
         self::assertTrue($this->formatter->supports($field));
@@ -49,7 +56,7 @@ class DatetimeFormatterTest extends TestCase
 
     public function testSupportsTimeType(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
         $field->method('getType')->willReturn('time');
 
         self::assertTrue($this->formatter->supports($field));
@@ -57,7 +64,7 @@ class DatetimeFormatterTest extends TestCase
 
     public function testDoesNotSupportTextType(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
         $field->method('getType')->willReturn('text');
 
         self::assertFalse($this->formatter->supports($field));
@@ -65,12 +72,16 @@ class DatetimeFormatterTest extends TestCase
 
     public function testFormatReturnsFormattedDate(): void
     {
-        $field = $this->createMock(Field::class);
+        $this->configureFixture(
+            timezone: $this->createMock(TimezoneInterface::class)
+        );
+        $field = $this->createStub(Field::class);
         $field->method('getType')->willReturn('date');
         $dateObj = new \DateTime('2024-01-15 10:00:00');
 
         $this->timezone->method('date')->willReturn($dateObj);
-        $this->timezone->method('formatDate')
+        $this->timezone->expects(self::atLeastOnce())
+            ->method('formatDate')
             ->with($dateObj, \IntlDateFormatter::SHORT, false)
             ->willReturn('Jan 15, 2024');
 
@@ -81,7 +92,10 @@ class DatetimeFormatterTest extends TestCase
 
     public function testFormatDatetimeIncludesTime(): void
     {
-        $field = $this->createMock(Field::class);
+        $this->configureFixture(
+            timezone: $this->createMock(TimezoneInterface::class)
+        );
+        $field = $this->createStub(Field::class);
         $field->method('getType')->willReturn('datetime');
         $dateObj = new \DateTime('2024-01-15 10:00:00');
 
@@ -96,7 +110,10 @@ class DatetimeFormatterTest extends TestCase
 
     public function testFormatTimeOmitsDate(): void
     {
-        $field = $this->createMock(Field::class);
+        $this->configureFixture(
+            timezone: $this->createMock(TimezoneInterface::class)
+        );
+        $field = $this->createStub(Field::class);
         $field->method('getType')->willReturn('time');
         $dateObj = new \DateTime('2024-01-15 10:00:00');
 
@@ -111,7 +128,7 @@ class DatetimeFormatterTest extends TestCase
 
     public function testFormatEmptyValueReturnsEmptyString(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
 
         self::assertSame('', $this->formatter->format('', $field));
         self::assertSame('', $this->formatter->format(null, $field));
@@ -119,7 +136,7 @@ class DatetimeFormatterTest extends TestCase
 
     public function testFormatInvalidDateFallsBackToRawValue(): void
     {
-        $field = $this->createMock(Field::class);
+        $field = $this->createStub(Field::class);
 
         $this->timezone->method('date')->willThrowException(new \Exception('invalid date'));
 

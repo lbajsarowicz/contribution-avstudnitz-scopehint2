@@ -19,14 +19,14 @@ class SerializedArrayFormatterBlindTest extends TestCase
 
     protected function setUp(): void
     {
-        $escaper = $this->createMock(Escaper::class);
+        $escaper = $this->createStub(Escaper::class);
         $escaper->method('escapeHtml')->willReturnCallback(
             static function ($value) {
                 return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
             }
         );
         $this->formatter = new SerializedArrayFormatter($escaper);
-        $this->field = $this->createMock(Field::class);
+        $this->field = $this->createStub(Field::class);
     }
 
     private function twoRows(string $secondTitle = 'Payment'): array

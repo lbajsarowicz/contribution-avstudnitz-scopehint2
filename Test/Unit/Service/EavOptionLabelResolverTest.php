@@ -21,7 +21,7 @@ class EavOptionLabelResolverTest extends TestCase
 
     public function testReturnsRawValueForAttributeWithoutSource(): void
     {
-        $attribute = $this->createMock(CatalogAttribute::class);
+        $attribute = $this->createStub(CatalogAttribute::class);
         $attribute->method('usesSource')->willReturn(false);
 
         self::assertSame('Plain', $this->resolver->resolve($attribute, 'Plain'));
@@ -57,7 +57,7 @@ class EavOptionLabelResolverTest extends TestCase
             ['2', 'Disabled'],
             ['1', 'Enabled'],
         ]);
-        $attribute = $this->createMock(CatalogAttribute::class);
+        $attribute = $this->createStub(CatalogAttribute::class);
         $attribute->method('getAttributeId')->willReturn('97');
         $attribute->method('usesSource')->willReturn(true);
         $attribute->method('getSource')->willReturn($source);
@@ -71,7 +71,7 @@ class EavOptionLabelResolverTest extends TestCase
 
     public function testReturnsRawValueWhenSourceThrows(): void
     {
-        $attribute = $this->createMock(CatalogAttribute::class);
+        $attribute = $this->createStub(CatalogAttribute::class);
         $attribute->method('usesSource')->willReturn(true);
         $attribute->method('getSource')->willThrowException(new \RuntimeException('broken source'));
 
@@ -83,9 +83,9 @@ class EavOptionLabelResolverTest extends TestCase
      */
     private function createAttributeReturning($optionText): CatalogAttribute
     {
-        $source = $this->createMock(AbstractSource::class);
+        $source = $this->createStub(AbstractSource::class);
         $source->method('getOptionText')->willReturn($optionText);
-        $attribute = $this->createMock(CatalogAttribute::class);
+        $attribute = $this->createStub(CatalogAttribute::class);
         $attribute->method('usesSource')->willReturn(true);
         $attribute->method('getSource')->willReturn($source);
 
